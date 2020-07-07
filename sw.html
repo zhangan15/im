@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>地理信息产业</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+<script src="https://api.mapbox.com/mapbox-gl-js/v1.11.0/mapbox-gl.js"></script>
+<script src="https://mapbox.github.io/mapbox-gl-language/index.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v1.11.0/mapbox-gl.css" rel="stylesheet" />
+<style>
+	body { margin: 0; padding: 0; }
+	#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<script>
+	mapboxgl.accessToken = 'pk.eyJ1IjoiemhhbmdhbiIsImEiOiJjamxvOWRjNzAwNGZnM3FvZWNzY3U3YjV6In0.eKpjjhuCFJmN4dWGAV-9Hg';
+	//mapboxgl.accessToken = 'pk.eyJ1IjoiemhhbmdhbiIsImEiOiJjamxvOWRjNzAwNGZnM3FvZWNzY3U3YjV6In0.eKpjjhuCFJmN4dWGAV-9Hg';
+    var map = new mapboxgl.Map({
+        container: 'map',
+        //style: 'mapbox://styles/zhangan/ckcbacjwz0vwi1iqvoitx31jy',
+		//style: 'mapbox://styles/mapbox/dark-v9',  
+		style: 'mapbox://styles/mapbox/traffic-day-v2',
+        center: [117.616, 37.802],
+        zoom: 3
+    });
+
+	mapboxgl.setRTLTextPlugin('https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.1.0/mapbox-gl-rtl-text.js');
+		map.addControl(new MapboxLanguage({
+		defaultLanguage: 'zh'
+	}));
+	
+	
+    map.on('load', function() {
+        // Add a new source from our GeoJSON data and
+        // set the 'cluster' option to true. GL-JS will
+        // add the point_count property to your source data.
+
+
+		
+
+		
+		map.addSource('GISindustry', {
+            type: 'geojson',
+            data:
+                'https://zhangan15.github.io/imap/swpoint.geojson',
+        });
+		
+		map.addLayer({
+            id: 'unclustered-point',
+            type: 'circle',
+            source: 'GISindustry',
+            filter: ['!', ['has', 'point_count']],
+            paint: {
+                'circle-color': '#fa0511',
+                'circle-radius': 5,
+                'circle-stroke-width': 1.5,
+                'circle-stroke-color': '#fff'
+            }
+        });
+		
+		map.addSource('sw', {
+            type: 'geojson',
+            data:
+                'https://zhangan15.github.io/imap/sw.geojson',
+        });
+		map.addLayer({
+            id: 'swp',
+            type: 'circle',
+            source: 'sw',
+            filter: ['!', ['has', 'point_count']],
+            paint: {
+                'circle-color': '#fc000d',
+                'circle-radius': 10,
+                'circle-stroke-width': 2,
+                'circle-stroke-color': '#fff'
+            }
+        }); 
+		
+		
+		map.addSource('swline', {
+            type: 'geojson',
+            data:
+                'https://zhangan15.github.io/imap/swline.geojson',
+        });
+		
+				// add the line which will be modified in the animation
+		map.addLayer({
+		'id': 'line-animation',
+		'type': 'line',
+		'source': 'swline',
+		'layout': {
+		'line-cap': 'round',
+		'line-join': 'round'
+		},
+		'paint': {
+		'line-color': '#fc6100',
+		'line-width': 5,
+		'line-opacity': 0.8
+		}
+		});
+		 
+		startTime = performance.now();
+		 
+		animateLine();
+
+
+        // click the button to pause or play
+        pauseButton.addEventListener('click', function() {
+            pauseButton.classList.toggle('pause');
+            if (pauseButton.classList.contains('pause')) {
+                cancelAnimationFrame(animation);
+            } else {
+                resetTime = true;
+                animateLine();
+            }
+        });
+
+        // reset startTime and progress once the tab loses or gains focus
+        // requestAnimationFrame also pauses on hidden tabs by default
+        document.addEventListener('visibilitychange', function() {
+            resetTime = true;
+        });
+
+        // animated in a circle as a sine wave along the map.
+        function animateLine(timestamp) {
+            if (resetTime) {
+                // resume previous progress
+                startTime = performance.now() - progress;
+                resetTime = false;
+            } else {
+                progress = timestamp - startTime;
+            }
+
+            // restart if it finishes a loop
+            if (progress > speedFactor * 360) {
+                startTime = timestamp;
+                geojson.features[0].geometry.coordinates = [];
+            } else {
+                var x = progress / speedFactor;
+                // draw a sine wave with some math.
+                var y = Math.sin((x * Math.PI) / 90) * 40;
+                // append new coordinates to the lineString
+                geojson.features[0].geometry.coordinates.push([x, y]);
+                // then update the map
+                map.getSource('line').setData(geojson);
+            }
+            // Request the next frame of the animation.
+            animation = requestAnimationFrame(animateLine);
+        };
+
+
+
+        // inspect a cluster on click
+        map.on('click', 'clusters', function(e) {
+            var features = map.queryRenderedFeatures(e.point, {
+                layers: ['clusters']
+            });
+            var clusterId = features[0].properties.cluster_id;
+
+            map.getSource('GISindustry').getClusterExpansionZoom(
+                clusterId,
+                function(err, zoom) {
+                    if (err) return;
+
+                    map.easeTo({
+                        center: features[0].geometry.coordinates,
+                        zoom: zoom
+                    });
+                }
+            );
+        });
+
+        // When a click event occurs on a feature in
+        // the unclustered-point layer, open a popup at
+        // the location of the feature, with
+        // description HTML from its properties.
+        map.on('click', 'unclustered-point', function(e) {
+            var coordinates = e.features[0].geometry.coordinates.slice();
+            var mag = e.features[0].properties.mag;
+  //            var tsunami;
+
+  //             if (e.features[0].properties.tsunami === 1) {
+  //               tsunami = 'yes';
+  //             } else {
+  //            tsunami = 'no';
+  //            }
+
+            // Ensure that if the map is zoomed out such that
+            // multiple copies of the feature are visible, the
+            // popup appears over the copy being pointed to.
+            while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+            }
+
+            new mapboxgl.Popup()
+                .setLngLat(coordinates)
+                .setHTML(
+                    '被投企业名称: ' + e.features[0].properties.被投企
+                )
+                .addTo(map);
+        });
+
+        map.on('mouseenter', 'clusters', function() {
+            map.getCanvas().style.cursor = 'pointer';
+        });
+        map.on('mouseleave', 'clusters', function() {
+            map.getCanvas().style.cursor = '';
+        });
+    });
+</script>
+
+</body>
+</html>
