@@ -141,7 +141,7 @@
             new mapboxgl.Popup()
                 .setLngLat(coordinates)
                 .setHTML(
-                    '名称: ' + e.features[0].properties.name + '\n' +' 注册资本: ' + e.features[0].properties.注册资本
+                    '名称: ' + e.features[0].properties.name + '<br/>' +'注册资本: ' + e.features[0].properties.注册资本 + '<br/>' +'成立日期: ' + e.features[0].properties.成立日期
                 )
                 .addTo(map);
         });
