@@ -139,7 +139,8 @@
             new mapboxgl.Popup()
                 .setLngLat(coordinates)
                 .setHTML(
-                    '名称: ' + mag + e.features[0].properties.name
+                    '名称: ' + e.features[0].properties.name
+		    '注册资本: ' + e.features[0].properties.注册资本
                 )
                 .addTo(map);
         });
